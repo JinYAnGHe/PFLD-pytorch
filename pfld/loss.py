@@ -19,6 +19,23 @@ class PFLDLoss(nn.Module):
         l2_distant = torch.sum((landmark_gt - landmarks) * (landmark_gt - landmarks), axis=1)
         return torch.mean(weight_angle * weight_attribute * l2_distant), torch.mean(l2_distant)
 
+
+class LandmarkLoss(nn.Module):
+    def __init__(self):
+        super(LandmarkLoss, self).__init__()
+
+    def forward(self, attribute_gt, landmark_gt, euler_angle_gt, angle, landmarks, train_batchsize):
+        weight_angle = torch.sum(1 - torch.cos(angle - euler_angle_gt), axis=1)
+        attributes_w_n = attribute_gt[:, 0:4].float()
+        mat_ratio = torch.mean(attributes_w_n, axis=0)
+        mat_ratio = torch.Tensor([
+            1.0 / (x) if x > 0 else train_batchsize for x in mat_ratio
+        ]).to(device)
+        weight_attribute = torch.sum(attributes_w_n.mul(mat_ratio), axis=1)
+
+        l2_distant = torch.sum((landmark_gt - landmarks) * (landmark_gt - landmarks), axis=1)
+        l2_distant = torch.sum((landmark_gt - landmarks) * (landmark_gt - landmarks), axis=1)
+        return torch.mean(weight_angle * weight_attribute * l2_distant), torch.mean(l2_distant) 
 def smoothL1(y_true, y_pred, beta = 1):
     """
     very similar to the smooth_l1_loss from pytorch, but with
@@ -28,7 +45,7 @@ def smoothL1(y_true, y_pred, beta = 1):
     loss = torch.sum(torch.where(mae>beta, mae-0.5*beta , 0.5*mae**2/beta), axis=-1)
     return torch.mean(loss)
 
-def wing_loss(y_true, y_pred, w=10.0, epsilon=2.0, N_LANDMARK = 106):
+def wing_loss(y_true, y_pred, w=10.0, epsilon=2.0, N_LANDMARK = 68):
     y_pred = y_pred.reshape(-1, N_LANDMARK, 2)
     y_true = y_true.reshape(-1, N_LANDMARK, 2) 
     
